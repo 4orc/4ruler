@@ -1,7 +1,7 @@
 
 # RULER
 
-<img src='img/ruler.jpg' width=150 align=right>
+<img src='img/ruler.jpg' width=400 align=right>
 #	ruler.lua	
 
 ## Lib	
