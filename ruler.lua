@@ -171,6 +171,7 @@ function SYM:add(x)
     self.n = self.n + 1
     self.has[x] = 1+ (self.has[x] or 0) end end
 
+fun
 local COLS=obj"COLS"
 function COLS:new(t)
   self.names=t
@@ -197,6 +198,7 @@ function DATA:add(t)
   if not self.cols then self.cols=COLS(t) else 
     self.cols:add(t)
     push(self._rows,t) end end
+
 
 -------------------
 -- ## Start up
