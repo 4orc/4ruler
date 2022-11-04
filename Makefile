@@ -2,7 +2,7 @@
 
 
 README.md: ../4readme/readme.lua ruler.lua ## update readme
-	printf "\n<img src='img/ruler.jpg' width=400 align=right><br clear=all>\n\n" > README.md
+	printf "\n<img src='img/ruler.jpg' width=400 align=right>\n\n" > README.md
 	lua $< ruler.lua >> README.md
 
 # changes to 3 cols and 101 chars/line
