@@ -1,5 +1,5 @@
 
-<img src='img/ruler.jpg' width=200 align=right>
+<img src='img/ruler.jpg' width=300 align=right>
 
 ## Lib	
 ### Lists	
