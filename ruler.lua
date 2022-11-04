@@ -358,7 +358,10 @@ function DATA:ranges()
         t[k] = t[k] or XY(col.at, col.txt, k)
         t[k]:add(x,y) end end 
     local b = n/the.Bins
-    return col:merge(sort(list(t),lt"xlo"), n/the.Bins, true, b, n-b) 
+    oo(sort(list(t),lt"xlo"))
+    local tmp= col:merge(sort(list(t),lt"xlo"), n/the.Bins, true, b, n-b) 
+    print("::",tmp)
+    return tmp
   end ---------------------
   self._rows = self:sorted()
   local out={}
