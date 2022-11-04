@@ -210,6 +210,7 @@ function NUM:norm(n,    lo,hi)
   return n=="?" and 0  or (hi-lo)<1E-9 and 0 or (n-lo)/(hi-lo) end
 
 function NUM:merge(t,min,goal,B,R)
+  print("????",t)
   local function fillInTheGaps(t)
     for i=2,#t do t[i].xlo = t[i-1].xhi end
     t[1].xlo = -math.huge
@@ -247,6 +248,7 @@ function SYM:norm(x)
   return x end
 
 function SYM:merge(t,...)
+  print("????",t)
   return t end
 
 function SYM:score(goal,B,R)
@@ -358,7 +360,6 @@ function DATA:ranges()
         t[k] = t[k] or XY(col.at, col.txt, k)
         t[k]:add(x,y) end end 
     local b = n/the.Bins
-    oo(sort(list(t),lt"xlo"))
     local tmp= col:merge(sort(list(t),lt"xlo"), n/the.Bins, true, b, n-b) 
     print("::",tmp)
     return tmp
