@@ -21,6 +21,7 @@
 | <tt>keys(t:`tab`) &rArr;  t</tt> |  sort+return `t`'s keys (ignore things with leading `_`) |
 | <tt>list(t:`tab`) &rArr;  t</tt> |  return a table with indexes 1..#t |
 | <tt>lt(x) &rArr;  fun</tt> |  return a function that sorts, ascending on key `x` |
+| <tt>gt(x) &rArr;  fun</tt> |  return a function that sorts, descending on key `x` |
 | <tt>push(t:`tab`,  x) &rArr;  any</tt> |  push `x` to end of list; return `x`  |
 
 
