@@ -2,7 +2,6 @@
 
 
 README.md: ../4readme/readme.lua ruler.lua ## update readme
-	printf "\n# RULER\n\n" > README.md
 	printf "<img src='img/ruler.jpg' width=400 align=right>" >> README.md
 	lua $< ruler.lua >> README.md
 
