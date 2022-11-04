@@ -1,17 +1,41 @@
+--                  ___                     
+--                 /\_ \                    
+--  _ __   __  __  \//\ \       __    _ __  
+-- /\`'__\/\ \/\ \   \ \ \    /'__`\ /\`'__\
+-- \ \ \/ \ \ \_\ \   \_\ \_ /\  __/ \ \ \/ 
+--  \ \_\  \ \____/   /\____\\ \____\ \ \_\ 
+--   \/_/   \/___/    \/____/ \/____/  \/_/ 
+--                                          
+                                         
 local the,help={},[[
 RULER: return best rule
 
+ -b --best   ratio of "best" examples     = .2
+ -B --Bins   max number of bins           = 16
  -f --file   data file                    = ../data/auto93.csv
  -g --go     start-up action              = nothing
+ -G --Goal   one of (up,down,other,mid)   = up
  -h --help   show help                    = false
  -s --seed   random number seed           = 937162211
- -S --Some   number of items kept in SOME = 256
-]]
+ -S --Some   number of items kept in SOME = 256]]
+
 local b4={}; for k,v in pairs(_ENV) do b4[k]=v end
---------------------
+
+local Goal={}
+function Goal.up(b,r)    return b^2/(b+r+1E-32) end
+function Goal.mid(b,r)   return (b+r)/math.abs(b-r+1E-32) end
+function Goal.down(b,r)  return r^2/(b+r+1E-32) end
+function Goal.other(b,r) return 1/(b+r+1E-32) end
+
+---------------------------------------------------------
+---    __                      _     _                   
+---   / _|  _  _   _ _    __  | |_  (_)  ___   _ _    ___
+---  |  _| | || | | ' \  / _| |  _| | | / _ \ | ' \  (_-<
+---  |_|    \_,_| |_||_| \__|  \__| |_| \___/ |_||_| /__/
+
 -- ## Lib
 -- ### Lists
-local copy,keys,push
+local copy,keys,list,push,sort
 function copy(t) --> t; return a deep copy of `t.
   if type(t) ~= "table" then return t end
   local u={}; for k,v in pairs(t) do u[k] = copy(v) end
@@ -20,11 +44,22 @@ function copy(t) --> t; return a deep copy of `t.
 function keys(t) --> t; sort+return `t`'s keys (ignore things with leading `_`)
   local function want(k,x) if tostring(k):sub(1,1) ~= "_" then return k end end
   local u={}; for k,v in pairs(t) do if want(k) then u[1+#u] = k end end
-  table.sort(u)
-  return u end
+  return sort(u) end
 
- function push(t, x) --> any; push `x` to end of list; return `x` 
+function list(t) --> t; return a table with indexes 1..#t
+  local u={}; for _,x in pairs(t) do u[1 + #u] = x end; return u end
+
+function lt(x) --> fun; return a function that sorts, ascending on key `x`
+  return function(a,b) return a[x] < b[x] end end
+
+function gt(x) --> fun; return a function that sorts, descending on key `x`
+  return function(a,b) return a[x] > b[x] end end
+
+function push(t, x) --> any; push `x` to end of list; return `x` 
   table.insert(t,x); return x end
+
+function sort(t,fun)
+  table.sort(t,fun); return t end
 
 -- ### Strings to things
 local coerce, csv
@@ -70,7 +105,7 @@ function o(t,  seen) --> str; table to string (recursive)
   return pre.."{".. table.concat(u," ").."}" end
 
 -- ### Random numbers
-local Seed,rand,rint,srand
+local Seed,rand,rint
 
 Seed=937162211
 function rand(nlo,nhi) --> num; return float from `nlo`..`nhi` (default 0..1)
@@ -96,7 +131,11 @@ function obj(s,    t,new) --> t; create a klass and a constructor + print method
   t.__index = t;return setmetatable(t,{__call=new}) end
 
 -- ### Main control
-local cli,run, runs
+local settings,cli,run, runs
+function settings(t)
+  help:gsub("\n [-][%S]+[%s]+[-][-]([%S]+)[^\n]+= ([%S]+)",
+            function(k,v) t[k] = coerce(v) end) end
+
 function cli(t) --> t; alters contents of options in `t` from the  command-line
   for k,v in pairs(t) do
     local v=tostring(v)
@@ -104,7 +143,6 @@ function cli(t) --> t; alters contents of options in `t` from the  command-line
       if x=="-"..(k:sub(1,1)) or x=="--"..k then
          v = v=="false" and "true" or v=="true" and "false" or arg[n+1] end end
     t[k] = coerce(v) end
-  if t.help then os.exit(print("\n"..help)) end
   return t end
 
 function run(fun) -->x; reset seed; call `fun`; afterwards, reset config
@@ -115,20 +153,26 @@ function run(fun) -->x; reset seed; call `fun`; afterwards, reset config
   return result end
 
 function runs(t,funs)
-  help:gsub("\n [-][%S]+[%s]+[-][-]([%S]+)[^\n]+= ([%S]+)",
-            function(k,v) the[k]=coerce(v) end)
-  cli(the)
+  settings(t)
+  cli(t)
+  if t.help then os.exit(print("\n"..help)) end
   local fails = 0
-  for _,k in pairs(keys(funs)) do                 -- for all functions
-    if t.go == "all" or t.go==k then                -- if we want to run it...
-      if run(funs[k]) == false                         -- if anything fails
-        then print(fmt("❌ %s",k)); fails=fails+1 -- update fails counter
-        else print(fmt("✅ %s",k)) end end end    -- check for rogue globals
+  for _,k in pairs(keys(funs)) do              -- for all functions
+    if t.go == "all" or t.go==k then           -- if we want to run it...
+      if run(funs[k]) == false                 -- if anything fails
+        then print(fmt("❌ %s",k))
+             fails = fails + 1                 -- update fails counter
+        else print(fmt("✅ %s",k)) end end end -- check for rogue globals
   for k,v in pairs(_ENV) do 
     if not b4[k] then print(fmt("#W ?%s %s",k,type(v))) end end 
   os.exit(fails) end
 
----------------------------------------
+------------------------------------------
+---        _                             
+---   __  | |  __ _   ___  ___  ___   ___
+---  / _| | | / _` | (_-< (_-< / -_) (_-<
+---  \__| |_| \__,_| /__/ /__/ \___| /__/
+
 local SOME=obj"SOME"
 function SOME:new(max)
   self.n,self.ok,self._has,self.max = 0,false,{},max or the.Some end
@@ -142,13 +186,13 @@ function SOME:add(x)
     if pos then
       self.ok=false
       self._has[pos] = x end end end
-
+-------------------------------------------------------------------------------
 local NUM=obj"NUM"
 function NUM:new(at,s)
-  self.at,self.s  = at or 0,s or ""
-  self.n,self.has = 0,SOME()
-  self.w          = (s or ""):find"-$" and -1 or 1
-  self.lo, self.hi= math.huge, -math.huge end
+  self.at,self.txt = at or 0, s or ""
+  self.n,self.has  = 0,SOME()
+  self.w           = (s or ""):find"-$" and -1 or 1
+  self.lo, self.hi = math.huge, -math.huge end
 
 function NUM:add(x)
   if x ~="?" then
@@ -158,24 +202,63 @@ function NUM:add(x)
     self.hi = math.max(self.hi,x) end end
 
 function NUM:discretize(n) --> num; discretize `Num`s,rounded to (hi-lo)/bins
-  local tmp = (self.hi - self.lo)/(the.bins - 1)
+  local tmp = (self.hi - self.lo)/(the.Bins - 1)
   return self.hi == self.lo and 1 or math.floor(n/tmp + .5)*tmp end 
 
+function NUM:norm(n,    lo,hi)
+  lo,hi = self.lo,self.hi
+  return n=="?" and 0  or (hi-lo)<1E-9 and 0 or (n-lo)/(hi-lo) end
+
+function NUM:merge(t,min,goal,B,R)
+  local function fillInTheGaps(t)
+    for i=2,#t do t[i].xlo = t[i-1].xhi end
+    t[1].xlo = -math.huge
+    t[#t].xhi = math.huge end
+  local function merge(t)
+    local u,i = {},1
+    while i <= #t do
+      local merged = t[i+1] and t[i]:merge(t[i+1], min,goal,B,R) 
+      u[1 + #u]    = merged or t[i]
+      i            = i + (merged and 2 or 1) end 
+    return #t == #u and t or merge(u) end
+  return fillInTheGaps(merge(t)) end
+-------------------------------------------------------------------------------
 local SYM=obj"SYM"
 function SYM:new(at ,s)
-  self.at,self.s  = at or 0,s or ""
+  self.at,self.txt  = at or 0,s or ""
   self.n,self.has = 0,{} end
 
-function SYM:add(x)
+function SYM:add(x,  inc)
   if x ~="?" then
-    self.n = self.n + 1
-    self.has[x] = 1+ (self.has[x] or 0) end end
+    inc = inc or 1
+    self.n = self.n + inc
+    self.has[x] = inc + (self.has[x] or 0) end end
 
-fun
+function SYM:merged(sym)
+  out = SYM(self.at, self.txt)
+  for x,n in pairs(self.has) do out:add(x,n) end
+  for x,n in pairs(sym.has)  do out:add(x,n) end
+  return out end
+
+function SYM:discretize(x) --> num; discretize `Num`s,rounded to (hi-lo)/bins
+  return x end
+
+function SYM:norm(x) 
+  return x end
+
+function SYM:merge(t,...)
+  return t end
+
+function SYM:score(goal,B,R)
+  local b,r = 0,0
+  for x,n in pairs(self.has) do
+    if x==goal then b=b+n else r=r+n end end
+  return Goal[the.Goal](b/B, r/R) end
+-------------------------------------------------------------------------------
 local COLS=obj"COLS"
 function COLS:new(t)
-  self.names=t
-  self.all,self.x,self.y,self.klass = {},{},{},nil
+  self.names = t
+  self.all, self.x, self.y, self.klass = {},{},{},nil
   for n,s in pairs(t) do
     local col = push(self.all, s:find"^[A-Z]+" and NUM(n,s) or SYM(n,s))
     if not s:find"X$" then
@@ -187,7 +270,58 @@ function COLS:add(t)
     for _,col in pairs(cols) do
       col:add(t[col.at]) end end 
   return t end
+-------------------------------------------------------------------------------
+local XY=obj"XY"
+function XY:new(n,s,nlo,nhi,y) -- Keep the `y` values from `xlo` to `xhi`
+  print(n,s,nlo,nhi,y)
+  self.at  = n                 -- offset for this column
+  self.txt = s                 -- name of this column
+  self.xlo = nlo               -- min x seen so far
+  self.xhi = nhi or nlo        -- max x seen so far
+  self._score = nil
+  self.y   = y or SYM(n,s) end -- y symbols see so far
 
+function XY:__tostring() --- print
+  local x,lo,hi,big = self.txt, self.xlo, self.xhi, math.huge
+  if     lo ==  hi  then return fmt("%s == %s", x, lo)
+  elseif hi ==  big then return fmt("%s >  %s", x, lo)
+  elseif lo == -big then return fmt("%s <= %s", x, hi)
+  else                   return fmt("%s <  %s <= %s", lo,x,hi) end end
+
+function XY:add(x,y) --- Update `xlo`,`xhi` to cover `x`. And add `y` to `self.y`
+  if x~="?" then
+    self._score = nil
+    if x < self.xlo then self.xlo=x end
+    if x > self.xhi then self.xhi=x end
+    self.y:add(y) end end
+
+function XY:score(goal,B,R)
+  if not self._score then self._score = self.y:score(goal,B,R) end
+  return self._score end 
+
+function XY:merge(xy2,min,goal,B,R)
+  local xy1 = self
+  if xy1.xlo > xy2.xlo then return xy2:merge(xy1,min,goal,B,R) end
+  local xy = XY(xy1.at, xy1.txt, xy1.xlo, xy2.xhi, xy1.y:merged(xy2.y))
+  if xy1.y.n < min or xy2.y.n < min then return xy end 
+  local n1,s1 = xy1.y.n, xy1:score(goal,B,R)
+  local n2,s2 = xy2.y.n, xy2:score(goal,B,R)
+  local n, s  = xy.y.n,  xy:score( goal,B,R)
+  local s12   = n1/n*s1 + n2/n*s2
+  if s > 0.01 and s12 < s then return xy end end
+-------------------------------------------------------------------------------
+local RULE=obj"RULE"
+function RULE:new(disjunct)
+  self.uses, self.has, self.disjunct = {},{},disjunct end
+
+-- function RULE:add(xy1)
+--   if not self.uses[xy1._id] then
+--     self.uses[xy1._id] = xy1._id
+--     for n,xy2 in pairs(self.has) do
+--       if xy2.at == xy1.at then
+--         self.has[n] = RULE(true)
+--         self.has[n]:add(xy1):add(xy2)
+-------------------------------------------------------------------------------
 local DATA=obj"DATA"
 function DATA:new(src)
   self._rows, self.cols = {},nil
@@ -199,12 +333,58 @@ function DATA:add(t)
     self.cols:add(t)
     push(self._rows,t) end end
 
+function DATA:better(row1,row2) --- order two rows
+  local s1,s2,d,n,x,y,ys=0,0,0,0
+  ys = self.cols.y
+  for _,col in pairs(ys) do
+    x,y= row1[col.at], row2[col.at]
+    x,y= col:norm(x), col:norm(y)
+    s1 = s1 - math.exp(col.w * (x-y)/#ys)
+    s2 = s2 - math.exp(col.w * (y-x)/#ys) end
+  return s1/#ys < s2/#ys end
 
--------------------
+function DATA:sorted()
+  return sort(self._rows, function(a,b) return self:better(a,b) end) end
+ 
+function DATA:ranges()
+  local function ranges(col)
+    local t,n = {},0
+    for r,row in pairs(self._rows) do
+      local y = r < (the.best * #self._rows)
+      local x = row[col.at]
+      if x ~= "?" then
+        n = n + 1
+        local k = col:discretize(x)
+        t[k] = t[k] or XY(col.at, col.txt, k)
+        t[k]:add(x,y) end end 
+    local b = n/the.Bins
+    return col:merge(sort(list(t),lt"xlo"), n/the.Bins, true, b, n-b) 
+  end ---------------------
+  self._rows = self:sorted()
+  local out={}
+  for _,col in pairs(self.cols.x) do
+    for _,range in pairs(ranges(col)) do push(out,range) end end
+  return sort(out, gt"_score") end
+
+---------------------------------
+---   _                _        
+---  | |_   ___   ___ | |_   ___
+---  |  _| / -_) (_-< |  _| (_-<
+---   \__| \___| /__/  \__| /__/
+
 -- ## Start up
-
 local eg={}
-function eg.main()
+function eg.load() 
   print(DATA(the.file)) end
+
+function eg.sorted() 
+  local d = DATA(the.file)
+  d:sorted()
+  for i=1,#d._rows,25 do print(i,o(d._rows[i])) end end
+
+function eg.ranges() 
+  local d = DATA(the.file)
+  d:ranges()
+end 
 
 runs(the,eg)
