@@ -1,4 +1,6 @@
-<img src='img/ruler.jpg' width=400 align=right>## Lib	
+
+<img src='img/ruler.jpg' width=400 align=right>
+## Lib	
 ### Lists	
 
 | What | Notes |
