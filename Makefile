@@ -10,15 +10,15 @@ README.md: ../4readme/readme.lua ruler.lua ## update readme
 	mkdir -p ~/tmp
 	echo "pdf-ing $@ ... "
 	a2ps                 \
-		-Br                 \
-		--chars-per-line 101 \
+		-BR                 \
+		--chars-per-line 100 \
 		--file-align=fill      \
 		--line-numbers=1        \
 		--borders=no             \
 		--pro=color               \
 		--left-title=""            \
 		--pretty-print="$R/etc/lua.ssh" \
-		--columns  3                 \
+		--columns  2                 \
 		-M letter                     \
 		--footer=""                    \
 		--right-footer=""               \
