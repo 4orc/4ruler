@@ -76,60 +76,136 @@ function o(t,  seen) --> str; table to string (recursive)
   local function filter(k) return fmt(":%s %s",k,o(t[k],seen)) end
   local u = #t>0 and map(t,tostring) or map(keys(t),filter)
   return "{".. table.concat(u," ").."}" end
+
+-- ### Polymorphism
+local _id,id,obj=0
+function obj(s,    t,new) --> t; create a klass, with a constructor + print method
+  local function new(k,...) 
+     _id = _id + 1
+     local i=setmetatable({_id=_id},k); t.new(i,...); return i end
+  t={_is=s, __tostring = o}
+  t.__index = t;return setmetatable(t,{__call=new}) end
+
+-- ### Start-up stuff
+function runs(settings,funs)
+  local fails = 0
+  for _,k in pairs(keys(funs)) do              -- for all functions
+    if settings.go == "all" or setttings.go==k then           -- if we want to run it...
+      if run(funs[k]) == false                 -- if anything fails
+        then print(fmt("❌ %s",k))
+             fails = fails + 1                 -- update fails counter
+        else print(fmt("✅ %s",k)) end end end -- check for rogue globals
+  for k,v in pairs(_ENV) do 
+    if not b4[k] then print(fmt("#W ?%s %s",k,type(v))) end end 
+  os.exit(fails) end
+
+Shizuku Tsukishima from the Studio Ghibli film Whisper of the Heart
+
 --------------------------------------------------------------------------------
 -- ## Objects
-local NUM,SYM,COLS,DATA
-function NUM(n,s) 
-  return {at=n or 0, txt=s or "", nump=true,
-          p={},
-          w=(s or ""):find"-$" and -1 or 1,
-          lo=big, hi=-big} end
+-- ### NUM
+local NUM=obj"NUM"
+function NUM:new(n,s) 
+  self.at=n or 0
+  self.txt = s or ""
+  self.f, self.p = {},{}
+  self.w=self.txt:find"-$" and -1 or 1
+  self.lo, self.hi= big, -big end
 
-function SYM(n,s)
-  return {at=n or 0, txt=s or "", p={}} end
+function NUM:add(x)
+  if x ~= "?" then
+    self.lo = math.min(x, self.lo)
+    self.hi = math.max(x, self.hi) end end
 
-function COLS(t)
-  local all,x,y = {},{},{} 
-  for n,s in pairs(t) do 
-    local col = push(all, s:find"^[A-Z]+" and NUM(n,s) or SYM(n,s))
-    if not s:find"X$" then
-      push(s:find"[!+-]$" and y or x, col) end end 
-  return {names=t, all=all, x=x, y=y}  end
-      
-function DATA(t)
-  return {rows={}, cols=COLS(t)} end
+function NUM:norm(x)
+  local lo,hi=self.lo,self.hi
+  return (hi - lo) < 1E-9 and 0 or (x - lo)/(hi - lo) end
+
+function NUM:discretize(x) --> num; discretize `Num`s,rounded to (hi-lo)/bins
+  local lo,hi=self.lo,self.hi
+  local tmp = (hi - lo)/(the.bins - 1)
+  return hi == lo and 1 or math.floor(x/tmp + .5)*tmp end 
 --------------------------------------------------------------------------------
-local norm,data,row,discretize,better
-function norm(num,x)
-  return (num.hi - num.lo) < 1E-9 and 0 or (x - num.lo)/(num.hi - num.lo) end
+-- ### SYM
+local SYM=obj"SYM"
+function SYM:new(n,s)
+  self.at=n or 0
+  self.txt = s or ""
+  self.f, self.p = {},{} end
 
-function better(row1,row2,data)
-  local s1,s2,n,x,y = 0,0,#data.cols.y
-  for _,col in pairs(data.cols.y) do
-    x  = norm(col, row1[col.at])
-    y  = norm(col, row2[col.at])
+function SYM:add(x) return x end
+function SYM:norm(x) return x end
+function SYM:discretize(x) return x end
+--------------------------------------------------------------------------------
+--- ### XY
+local XY=obj"XY"
+function XY:new(at,txt,lo,hi) 
+  self.at = at
+  self.txt= txt
+  self.n, self.p= 0,0
+  self.lo=lo
+  self.hi=hi or lo end
+
+function XY:add(x,p)
+  self.n = self.n+1
+  self.p = self.p+1
+  self.lo = math.min(x, self.lo)
+  self.hi = math.max(x, self.hi) end
+
+function XY:merge(xy,min)
+  local a,b = self,xy
+  local c = XY(a.at,a,txt, a.lo, b.hi)
+  c.p = a.p + b.p
+  c.n = a.n + b.n
+  local smalln = a.n < min or b.n < min
+  local dullp = (a.p*a.n + b.p*b.n)/c.n <= new.p
+  if smalln or dullp then return merged end end
+
+--------------------------------------------------------------------------------
+-- ### COLS
+local COLS=obj"COLS"
+function COLS:new(t)
+  self.all, self.x, self.y = {},{},{} 
+  for n,s in pairs(t) do 
+    local col = push(self.all, s:find"^[A-Z]+" and NUM(n,s) or SYM(n,s))
+    if not s:find"X$" then
+      push(s:find"[!+-]$" and self.y or self.x, col) end end end
+    
+function COLS:add(t)
+  for _,cols in pairs{self.cols.x, self.cols.y} do
+    for _,col in pairs(cols) do
+      col:add(t.cells[col.at]) end end 
+  return t end
+--------------------------------------------------------------------------------
+-- ### ROW
+local ROW=obj"ROW"
+function ROW:new(t,data) 
+  self.cells=t; self.data=data end
+
+function ROW:__lt(row)
+  local ys= self.data.cols.y
+  local s1,s2,n,x,y = 0,0,#ys
+  for _,col in pairs(ys) do
+    x  = col:norm( self.cells[col.at] )
+    y  = col:norm( row.cells[col.at]  )
     s1 = s1 - math.exp(col.w * (x-y)/n)
     s2 = s2 - math.exp(col.w * (y-x)/n) end
   return s1/n < s2/n end
+--------------------------------------------------------------------------------
+-- ### DATA
+local DATA=obj"DATA"
+function DATA:new(t,src)
+  self.rows,self.cols ={},COLS(t) end
 
-function discretize(col,x) --> num; discretize `Num`s,rounded to (hi-lo)/bins
-  if not col.nump then return x else
-    local tmp = (col.hi - col.lo)/(the.bins - 1)
-    return col.hi == col.lo and 1 or math.floor(x/tmp + .5)*tmp end end
+function DATA:add(t) 
+  local row  = t.cells and t or ROW(t,self)
+  self.cols:add(row)
+  push(data.rows, row) end
 
-function row(data,t)
-  push(data.rows, t)
-  for _,cols in pairs{data.cols.x, data.cols.y} do
-    for _,col in pairs(cols) do
-      local x = t[col.at]
-      if x ~= "?" then
-        if col.nump then col.lo = math.min(x, col.lo)
-                         col.hi = math.max(x, col.hi) end end end end end
-
-function data(src)
+function data(from) ;--> DATA; factory for making from files or lists
   local data1
-  local function add(t) if not data1 then data1=DATA(t) else row(data1,t) end end
-  csv(src, add) 
+  local function add(t) if not data1 then data1=DATA(t) else data1:add(t) end end
+  if type(from)=="string" then csv(from, add) else map(from or {}, add) end
   return data1 end
 --------------------------------------------------------------------------------
 local bins,merge,merges,rewards,reward
@@ -178,6 +254,13 @@ function rewards(data)
     reward( better(row1,row2,data) and row1 or row2, data) end end
 
 --------------------------------------------------------------------------------
+function run(fun,settings) -->x; reset seed; call `fun`; afterwards, reset config
+  local was=copy(settings)
+  srand(settings.seed or 10019)
+  local result=fun()
+  for k,v in pairs(was) do settings[k]=v end -- undo any changes to the config
+  return result end
+
 local eg={}
 function eg.data() data(the.file) end
 function eg.rewards(data1)
