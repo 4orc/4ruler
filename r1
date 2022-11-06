@@ -151,7 +151,7 @@ function SYM:new(n,s)
   self.txt = s or ""
   self.f, self.p = {},{} end
 
-function SYM:add(x) return x end
+function SYM:add(x) return x end -->nil; asdas 
 function SYM:norm(x) return x end
 function SYM:discretize(x) return x end
 
