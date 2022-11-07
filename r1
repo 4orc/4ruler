@@ -210,6 +210,30 @@ function XY:merge(xy,min)
   local smalln = a.n < min or b.n < min
   local dullp  = false --(a.p*a.n + b.p*b.n)/c.n <= c.p
   if smalln or dullp then return c end end
+
+function XY:select(row)
+  local x=row.cells[self.at]
+  if  x == "?" then return row 
+  elseif self.lo==self.hi then 
+    if x == self.lo then return row end 
+  else 
+    if self.lo < x and x <= self.hi then return row end end end
+
+function XY:selects(rows)
+  return map(row, function(row) return self:select(row) end) end
+
+-- function selects(xys,rows)
+--   local ors={}
+--   for _,xy in pairs(xys) do 
+--     ors[xy.at]=ors[xy.at] or {}
+--     push(ors[xy.at], xy) end
+--   local ands = {}
+--   for n,xys in pairs(ors) do
+--     local or1={}
+--     for _,xy in pairs(self:selects(row)) do or[xy:selects(rows,or1) end
+--     if n==1 then ands=tmp else
+--       for id,row in pairs(tmp) do
+--          if 
 --------------------------------------------------------------------------------
 -- ### COLS
 local COLS=obj"COLS"
