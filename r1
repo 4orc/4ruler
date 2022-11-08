@@ -142,7 +142,7 @@ function NUM:discretize(x) --> num; discretize `Num`s,rounded to (hi-lo)/bins
   return hi == lo and 1 or math.floor(x/tmp + .5)*tmp end 
 
 function NUM:dist(x,y)
-  if x=="?" and y=="?" then return 0 end
+  if x=="?" and y=="?" then return 1 end
   x,y = self:norm(x), self:norm(y)
   if x=="?" then x = y<.5 and 1 or 0 end
   if y=="?" then y = x<.5 and 1 or 0 end
@@ -185,7 +185,7 @@ function SYM:merge(x,...) return x end
 function SYM:discretize(x) return x end
 
 function SYM:dist(x,y) 
-  return x=="?" and 1 or (x==y and 0 or 1) end
+  return x=="?" and y=="?" and 1 or (x==y and 0 or 1) end
 --------------------------------------------------------------------------------
 --- ### XY
 local XY=obj"XY"
@@ -244,11 +244,11 @@ function COLS:new(t)
     if not s:find"X$" then
       push(s:find"[!+-]$" and self.y or self.x, col) end end end
     
-function COLS:add(t)
+function COLS:add(row)
   for _,cols in pairs{self.x, self.y} do
     for _,col in pairs(cols) do
-      col:add(t.cells[col.at]) end end 
-  return t end
+      col:add(row.cells[col.at]) end end 
+  return row end
 --------------------------------------------------------------------------------
 -- ### ROW
 local ROW=obj"ROW"
@@ -287,7 +287,11 @@ function DATA:new(t,src)
   self.rows,self.cols ={},COLS(t) end
 
 function DATA:add(t) 
-  push(self.rows, self.cols:add(t.cells and t or ROW(t,self))) end
+  push(self.rows,                     -- add a new row to `rows`
+        self.cols:add(                -- update column readers (returns the row)
+          t.cells and t or ROW(t,self) -- ensure thing being added is a ROW
+          )) end
+
 
 function DATA:betters() return sort(self.rows) end
 
