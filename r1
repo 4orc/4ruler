@@ -19,6 +19,7 @@ USAGE:
 OPTIONS: 
   -b --best    ratio of "best" examples     = .2
   -B --Bins    max number of bins           = 16
+  -c --cohen   Cohen's small d size         = .35
   -d --dump    stop on errors, dump stack   = false
   -f --file    data file                    = ../data/auto93.csv
   -g --go      start-up action              = nothing
@@ -124,6 +125,7 @@ function NUM:new(n,s)
 
 function NUM:add(x)
   if x ~= "?" then
+    self.n  = self.n + 1
     local d = x - self.mu
     self.mu = self.mu + d/self.n
     self.m2 = self.m2 + d*(x - self.mu)
@@ -158,7 +160,7 @@ function NUM:merge(b4,min)
   local now,j = {},1
   while j <= #b4 do
     local xy1, xy2 = b4[j], b4[j+1]
-    local merged   = xy2 and xy1:merge(xy2,min)
+    local merged   = xy2 and xy1:merge(xy2,min, the.cohen*self.sd)
     now[1+#now]    = merged or xy1
     j              = j + (merged and 2 or 1) end 
   return #now < #b4 and self:merge(now,min) or fillInTheGaps(now) end 
@@ -186,6 +188,8 @@ function SYM:discretize(x) return x end
 
 function SYM:dist(x,y) 
   return x=="?" and y=="?" and 1 or (x==y and 0 or 1) end
+
+
 --------------------------------------------------------------------------------
 --- ### XY
 local XY=obj"XY"
@@ -193,31 +197,35 @@ function XY:new(at,txt,lo,hi)
   self.at = at
   self.txt= txt
   self.n, self.p = 0,0
+  self._rows={}
   self.lo=lo
   self.hi=hi or lo end
 
-function XY:add(x,p)
+function XY:add(x,p,row)
+  self._rows[row._id] = row
   self.n  = self.n + 1
   self.p  = self.p + p
   self.lo = math.min(x, self.lo)
   self.hi = math.max(x, self.hi) end
 
-function XY:merge(xy,min)
+function XY:merge(xy,rare,small)
   local a,b = self, xy
   local c   = XY(self.at, self.txt, a.lo, b.hi)
   c.p = a.p + b.p
   c.n = a.n + b.n
-  local smalln = a.n < min or b.n < min
-  local dullp  = false --(a.p*a.n + b.p*b.n)/c.n <= c.p
-  if smalln or dullp then return c end end
+  for k,v in pairs(a._rows) do c._rows[k] = v end 
+  for k,v in pairs(b._rows) do c._rows[k] = v end
+  local isRare  = a.n< rare or b.n <= rare
+  local isSmall = b.lo - a.lo <= small 
+  if isSmall or isRare then return c end end
 
 function XY:select(row)
+  if self.rows[row._id] then return row end -- we've seen it before and we like it
   local x=row.cells[self.at]
-  if  x == "?" then return row 
-  elseif self.lo==self.hi then 
-    if x == self.lo then return row end 
-  else 
-    if self.lo < x and x <= self.hi then return row end end end
+  if  x == "?"                           then return row end -- if in doubt, return it
+  if self.lo < x and x <= self.hi        then return row end -- for numbers
+  if self.lo == self.hi and x == self.lo then return row end -- for symbols
+  end
 
 function XY:selects(rows)
   return map(row, function(row) return self:select(row) end) end
@@ -292,10 +300,10 @@ function DATA:add(t)
           t.cells and t or ROW(t,self) -- ensure thing being added is a ROW
           )) end
 
-
 function DATA:betters() return sort(self.rows) end
 
 function DATA:reward(row1,row2)
+  io.write(".")
   if row2 < row1 then row1,row2 = row2,row1 end
   local weight = row1:dist(row2, self.cols.y)
   for _,col in pairs(self.cols.x) do
@@ -303,7 +311,7 @@ function DATA:reward(row1,row2)
     if x ~= "?" then 
       local v  = col:discretize(x)
       col.p[v] = col.p[v] or XY(col.at, col.txt, x)
-      col.p[v]:add(x, weight) end end end 
+      col.p[v]:add(x, weight,row1) end end end 
 
 function DATA:rewards()
   for j=1,the.repeats do self:reward(any(self.rows), any(self.rows)) end
@@ -312,8 +320,9 @@ function DATA:rewards()
     print""
     local xys = sort(list(col.p), lt"lo")
     xys = col:merge(xys, #self.rows/the.Bins)
-    for _,xy in pairs(xys) do push(out, xy) end end 
-  return sort(out, gt"p") end
+    for _,xy in pairs(xys) do 
+         push(out, xy) end end 
+  return sort(out,gt"p") end
 --------------------------------------------------------------------------------
 -- ### Start-up stuff
 local cli,main,runs,run1
@@ -394,7 +403,7 @@ function eg.ydist()
 
 function eg.rewards()
   local d=data(the.file)
-  map(d:rewards(),oo)
+  map(d:rewards(),print)
   -- for _,col in pairs(d.cols.x) do
   --   print""
   --   map(col.p,oo) end 
