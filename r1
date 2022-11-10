@@ -6,6 +6,7 @@
 ---   \ \ \/       \ \ \ 
 ---    \ \_\        \ \_\
 ---     \/_/         \/_/
+
 local the,help = {},[[
 R1: rule generation for multi-objective optimization
 (c) 2022, Tim Menzies, <timm@ieee.org>, BSD-2 clause
@@ -28,7 +29,36 @@ OPTIONS:
   -p --p       distance coefficient         = 2
   -r --repeats sample size for rows         = 256
   -s --seed    random number seed           = 10019]]
---------------------------------------------------------------------------------
+
+-- ## Coding Conventions 
+-- -- Less than 100 characters per line (and tabs are two spaces).
+-- -- The `end` keywords appear at end of line, after some code.
+-- -- The `the` variable contains program settings:
+--    -- These settings parsed out of the help file.
+--    -- Settings can be changed on the command line using the first letter of the setting. 
+--       -- e.g. `Bins` can be changed via e.g. `-B 20`;
+--    -- Boolean settings can be changed just be mentioning them on the command line. 
+--      -- e.g. the default of `help` = `false` is changed to `true` via `-h`.
+-- -- The `eg` table contains tests. 
+--    -- If tests return `false`, they are a failure.
+--    -- On exit, this code returns the total number of failires
+--    -- Any test `eg.x()` can be called from command line using `-g x`
+--    -- All tests can be called from the command line using `-g all`.
+-- -- Any line starting with "-- " is part of the README documentation.
+-- -- Public functions and methods are denoted with `;-->type;help`. for such items:
+--    -- Optional vars denoted with 2 leading blanks
+--    -- Local vars denoted with 4 leading blanks
+-- -- Class construction methods  denoted with CLASS:new and can be called CLASS().
+-- -- Public item arguments contain some basic type hints:
+--    -- Lower case versions of class names are instances (eg. data1 is of class DATA)
+--    -- `x` or `any` denotes anything at all
+--    -- `t` denotes a table 
+--    -- prefix `n`  denotes numbers
+--    -- prefix `is` denotes booleans
+--    -- prefix `s`  denotes strings
+--    -- suffix `s` denotes list of things (e.g. `sfiles is a list of strings)
+--    -- suffix `fun` denotes a function
+
 local b4={}; for k,v in pairs(_ENV) do b4[k]=v end
 -- ## Library
 -- ### Maths
@@ -281,7 +311,7 @@ function ROW:dist(row,cols)
     local x,y = self.cells[col.at], row.cells[col.at]
     d = d + col:dist(x,y)^the.p end
   return (d/#cols)^(1/the.p) end
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- ### DATA
 local DATA,data = obj"DATA"
 
@@ -295,7 +325,7 @@ function DATA:new(t,src)
   self.rows,self.cols ={},COLS(t) end
 
 function DATA:add(t) 
-  push(self.rows,                     -- add a new row to `rows`
+  push(self.rows,                    -- add a new row to `rows`
         self.cols:add(                -- update column readers (returns the row)
           t.cells and t or ROW(t,self) -- ensure thing being added is a ROW
           )) end
@@ -323,7 +353,7 @@ function DATA:rewards()
     for _,xy in pairs(xys) do 
          push(out, xy) end end 
   return sort(out,gt"p") end
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- ### Start-up stuff
 local cli,main,runs,run1
 function cli(options) --> t; update key,vals in `t` from command-line flags
