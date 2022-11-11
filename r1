@@ -18,17 +18,20 @@ USAGE:
   r1  [OPTIONS]  [-f file.csv]
 
 OPTIONS: 
-  -b --best    ratio of "best" examples     = .2
-  -B --Bins    max number of bins           = 16
-  -c --cohen   Cohen's small d size         = .35
-  -d --dump    stop on errors, dump stack   = false
-  -f --file    data file                    = ../data/auto93.csv
-  -g --go      start-up action              = nothing
-  -G --Goal    one of (up,down,other,mid)   = up
-  -h --help    show help                    = false
-  -p --p       distance coefficient         = 2
-  -r --repeats sample size for rows         = 256
-  -s --seed    random number seed           = 10019]]
+  -b --best     ratio of "best" examples     = .2
+  -B --Bins     max number of bins           = 16
+  -c --cohen    Cohen's small d size         = .35
+  -d --dump     stop on errors, dump stack   = false
+  -f --file     data file                    = ../data/auto93.csv
+  -F --Far      how far are remote items     = .95
+  -g --go       start-up action              = nothing
+  -G --Goal     one of (up,down,other,mid)   = up
+  -h --help     show help                    = false
+  -H --Half     how many items,max,for half  = 256
+  -l --leaf     leaf size in trees "N^l"     = 0.5
+  -p --p        distance coefficient         = 2
+  -r --repeats  sample size for rows         = 256
+  -s --seed     random number seed           = 10019]]
 --------------------------------------------------------------------------------
 local b4={}; for k,v in pairs(_ENV) do b4[k]=v end
 -- ## Library
@@ -54,9 +57,12 @@ function csv(sFilename,fun) --> nil; call `fun` on rows (after coercing cell tex
     else return io.close(src) end end end
 
 -- ### Lists
-local any,copy,push,map,keys,gt,lt,sort,list
+local any,many,copy,push,map,keys,gt,lt,sort,list
 function any(t)
   return t[math.random(#t)] end
+
+function many(t,n)
+  local u={}; for i=1,n do u[1+#u] = any(t) end; return u end 
 
 function push(t, x) --> any; push `x` to end of list; return `x` 
   table.insert(t,x); return x end
@@ -273,14 +279,24 @@ function ROW:__lt(row)
     s2 = s2 - math.exp(col.w * (y-x)/n) end
   return s1/n < s2/n end
 
-function ROW:__sub(row) return self:dist(row, self._data.cols.x) end
-function ROW:dist(row,cols)
-  cols = cols or self._data.cols.x
+function ROW:__sub(row) 
+  return self:dist(row, self._data.cols.x) end
+
+function ROW:dist(row,  cols)
+  cols = cols or data.cols.x
   local d = 0
   for _,col in pairs(cols) do
     local x,y = self.cells[col.at], row.cells[col.at]
     d = d + col:dist(x,y)^the.p end
   return (d/#cols)^(1/the.p) end
+
+function ROW:around(rows,  cols)
+  local t = map(rows, function(r) return {row=self, d=self:dist(r,cols)} end)
+  return sort(t, lt"d") end
+
+function ROW:far(rows,  cols) 
+  return self:around(rows,cols)[ the.Far*#rows//1 ] end
+
 -------------------------------------------------------------------------------
 -- ### DATA
 local DATA,data = obj"DATA"
@@ -299,6 +315,11 @@ function DATA:add(t)
         self.cols:add(                -- update column readers (returns the row)
           t.cells and t or ROW(t,self) -- ensure thing being added is a ROW
           )) end
+
+function DATA:clone(  t)
+  local d = DATA:new(self.cols.names)
+  for _,row in pairs(t or {}) do d:add(row) end
+  return d end
 
 function DATA:betters() return sort(self.rows) end
 
@@ -326,6 +347,29 @@ function DATA:rewards()
     for _,xy in pairs(xys) do 
          push(out, xy) end end 
   return sort(out,gt"p") end
+
+function DATA:half(  above)
+  local some,A,B,c,As,Bs,d,proj = many(self.rows, the.Half)
+  function d(r1,r2)   return r1:dist(r1, self.cols.x) end
+  function far(r)     return r:far(some, self.cols.x) end
+  function projFun(r) return {row=r, x=(d(A,r)^2 + c^2 - d(B,r)^2)/(2*c)} end
+  A     = above or far(any(some))
+  B     = far(A)
+  c     = d(A,B)
+  As,Bs = self:clone(), self:clone()
+  for i,rw in pairs(sort(map(self.rows, projFun), lt"x")) do
+    if i<=(#self.rows)//2 then As:add(rw.row) else Bs:add(rw.row) end end
+  return As,Bs,A,B,c end 
+
+function DATA:tree(  stop,above, rest)
+  stop = stop or (#self.rows)^the.left
+  if   #self.rows < stop 
+  then return self,rest
+  else local xs,ys,x,y = data:half(above)
+       if y < x then xs,x,ys,y = ys,y,xs,x end
+       if rest then
+         for _,row in pairs(ys) do rest:add(row) end end
+       xs:recurse(stop, x, rest or ys) end end 
 --------------------------------------------------------------------------------
 -- ### Start-up stuff
 local cli,main,runs,run1
