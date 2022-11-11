@@ -29,36 +29,7 @@ OPTIONS:
   -p --p       distance coefficient         = 2
   -r --repeats sample size for rows         = 256
   -s --seed    random number seed           = 10019]]
-
--- ## Coding Conventions 
--- -- Less than 100 characters per line (and tabs are two spaces).
--- -- The `end` keywords appear at end of line, after some code.
--- -- The `the` variable contains program settings:
---    -- These settings parsed out of the help file.
---    -- Settings can be changed on the command line using the first letter of the setting. 
---       -- e.g. `Bins` can be changed via e.g. `-B 20`;
---    -- Boolean settings can be changed just be mentioning them on the command line. 
---      -- e.g. the default of `help` = `false` is changed to `true` via `-h`.
--- -- The `eg` table contains tests. 
---    -- If tests return `false`, they are a failure.
---    -- On exit, this code returns the total number of failires
---    -- Any test `eg.x()` can be called from command line using `-g x`
---    -- All tests can be called from the command line using `-g all`.
--- -- Any line starting with "-- " is part of the README documentation.
--- -- Public functions and methods are denoted with `;-->type;help`. for such items:
---    -- Optional vars denoted with 2 leading blanks
---    -- Local vars denoted with 4 leading blanks
--- -- Class construction methods  denoted with CLASS:new and can be called CLASS().
--- -- Public item arguments contain some basic type hints:
---    -- Lower case versions of class names are instances (eg. data1 is of class DATA)
---    -- `x` or `any` denotes anything at all
---    -- `t` denotes a table 
---    -- prefix `n`  denotes numbers
---    -- prefix `is` denotes booleans
---    -- prefix `s`  denotes strings
---    -- suffix `s` denotes list of things (e.g. `sfiles is a list of strings)
---    -- suffix `fun` denotes a function
-
+--------------------------------------------------------------------------------
 local b4={}; for k,v in pairs(_ENV) do b4[k]=v end
 -- ## Library
 -- ### Maths
@@ -218,8 +189,6 @@ function SYM:discretize(x) return x end
 
 function SYM:dist(x,y) 
   return x=="?" and y=="?" and 1 or (x==y and 0 or 1) end
-
-
 --------------------------------------------------------------------------------
 --- ### XY
 local XY=obj"XY"
@@ -240,14 +209,15 @@ function XY:add(x,p,row)
 
 function XY:merge(xy,rare,small)
   local a,b = self, xy
-  local c   = XY(self.at, self.txt, a.lo, b.hi)
-  c.p = a.p + b.p
-  c.n = a.n + b.n
-  for k,v in pairs(a._rows) do c._rows[k] = v end 
-  for k,v in pairs(b._rows) do c._rows[k] = v end
   local isRare  = a.n< rare or b.n <= rare
-  local isSmall = b.lo - a.lo <= small 
-  if isSmall or isRare then return c end end
+  local isSmall = a.hi - a.lo <= small or b.hi - b.lo <= small
+  if isSmall or isRare then 
+    local c   = XY(self.at, self.txt, a.lo, b.hi)
+    c.p = a.p + b.p
+    c.n = a.n + b.n
+    for k,v in pairs(a._rows) do c._rows[k] = v end 
+    for k,v in pairs(b._rows) do c._rows[k] = v end
+    return c end end
 
 function XY:select(row)
   if self.rows[row._id] then return row end -- we've seen it before and we like it
@@ -272,7 +242,7 @@ function XY:selects(rows)
 --     if n==1 then ands=tmp else
 --       for id,row in pairs(tmp) do
 --          if 
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- ### COLS
 local COLS=obj"COLS"
 function COLS:new(t)
@@ -311,7 +281,7 @@ function ROW:dist(row,cols)
     local x,y = self.cells[col.at], row.cells[col.at]
     d = d + col:dist(x,y)^the.p end
   return (d/#cols)^(1/the.p) end
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- ### DATA
 local DATA,data = obj"DATA"
 
@@ -325,7 +295,7 @@ function DATA:new(t,src)
   self.rows,self.cols ={},COLS(t) end
 
 function DATA:add(t) 
-  push(self.rows,                    -- add a new row to `rows`
+  push(self.rows,                     -- add a new row to `rows`
         self.cols:add(                -- update column readers (returns the row)
           t.cells and t or ROW(t,self) -- ensure thing being added is a ROW
           )) end
@@ -334,7 +304,6 @@ function DATA:betters() return sort(self.rows) end
 
 function DATA:reward(row1,row2)
   io.write(".")
-  if row2 < row1 then row1,row2 = row2,row1 end
   local weight = row1:dist(row2, self.cols.y)
   for _,col in pairs(self.cols.x) do
     local x = row1.cells[col.at]
@@ -344,7 +313,11 @@ function DATA:reward(row1,row2)
       col.p[v]:add(x, weight,row1) end end end 
 
 function DATA:rewards()
-  for j=1,the.repeats do self:reward(any(self.rows), any(self.rows)) end
+  local best,one,two  
+  for j=1,the.repeats do 
+    one, two=any(self.rows), any(self.rows)
+    if two<one then one,two=two,one end
+    self:reward(one,two) end
   local out = {}
   for _,col in pairs(self.cols.x) do
     print""
@@ -433,11 +406,10 @@ function eg.ydist()
 
 function eg.rewards()
   local d=data(the.file)
-  map(d:rewards(),print)
-  -- for _,col in pairs(d.cols.x) do
-  --   print""
-  --   map(col.p,oo) end 
+  map(d:rewards(),print) end
+--------------------------------------------------------------------------------
+if   pcall(debug.getlocal,4,1) -- if code loaded via a `require` statement
+then return {the=the,help=help, NUM=NUM,SYM=SYM,XY=XY, COLS=COLS,ROW=ROW,DATA=DATA}
+else main(help,the,eg) -- if called as the top-level file from the command line
 end
-
-main(help,the,eg)
-
+-- to do. delete the things that are full range. inside merge

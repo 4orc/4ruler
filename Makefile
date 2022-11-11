@@ -12,7 +12,7 @@ README.md: ../4readme/readme.lua ruler.lua ## update readme
 	echo "pdf-ing r1 ... "
 	a2ps                 \
 		-Br                 \
-		--lines-per-page 150 \
+		--chars-per-line 90 \
 		--file-align=fill      \
 		--line-numbers=1        \
 		--borders=no             \
