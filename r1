@@ -323,31 +323,6 @@ function DATA:clone(  t)
 
 function DATA:betters() return sort(self.rows) end
 
-function DATA:reward(row1,row2)
-  io.write(".")
-  local weight = row1:dist(row2, self.cols.y)
-  for _,col in pairs(self.cols.x) do
-    local x = row1.cells[col.at]
-    if x ~= "?" then 
-      local v  = col:discretize(x)
-      col.p[v] = col.p[v] or XY(col.at, col.txt, x)
-      col.p[v]:add(x, weight,row1) end end end 
-
-function DATA:rewards()
-  local best,one,two  
-  for j=1,the.repeats do 
-    one, two=any(self.rows), any(self.rows)
-    if two<one then one,two=two,one end
-    self:reward(one,two) end
-  local out = {}
-  for _,col in pairs(self.cols.x) do
-    print""
-    local xys = sort(list(col.p), lt"lo")
-    xys = col:merge(xys, #self.rows/the.Bins)
-    for _,xy in pairs(xys) do 
-         push(out, xy) end end 
-  return sort(out,gt"p") end
-
 function DATA:half(  above)
   local some,A,B,c,As,Bs,d,proj = many(self.rows, the.Half)
   function d(r1,r2)   return r1:dist(r1, self.cols.x) end
