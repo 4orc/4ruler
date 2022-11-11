@@ -5,7 +5,8 @@ NR=1  { split($0,Names,",")
           if (Names[c] ~ /^[A-Z]+/) { Hi[c]= -Big
                                       Lo[c]=  Big }}}
 NR> 1 { for(c=1;c<=NR;c++) 
-          if (isNum(c)) { Hi[c] = max($c, Hi[c]) 
+          if (isNum(c)) { $c += 0
+                          Hi[c] = max($c, Hi[c]) 
                           Lo[c] = min($c, Lo[c]) }}
 
 function max(x,y) { return x>y ? x : y }
@@ -16,9 +17,8 @@ function isNum(c) { return c in Hi    }
 function isY(c)   { return Names[c] ~ /[!\+-]$/ }
 
 function norm(c,x) {
-  if (x=="?") { return x }
-  lo,hi = Lo[c],Hi[c]
-  return (hi - lo) < 1/Big ? 0 : (x-lo)/(hi-lo_ }
+  if (x=="?") return x
+  return (Hi[c] - Lo[c]) < 1/Big ? 0 : (x-Lo[c])/(Hi[c]-Lo[c] }
 
 function mop_cmp(i1, v1, i2, v2,    n,c,x,y,s1,s2) {
   n = length(Goals)
