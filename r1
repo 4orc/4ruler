@@ -324,16 +324,16 @@ function DATA:clone(  t)
 function DATA:betters() return sort(self.rows) end
 
 function DATA:half(  above)
-  local some,A,B,c,As,Bs,d,proj = many(self.rows, the.Half)
-  function d(r1,r2)   return r1:dist(r1, self.cols.x) end
-  function far(r)     return r:far(some, self.cols.x) end
-  function projFun(r) return {row=r, x=(d(A,r)^2 + c^2 - d(B,r)^2)/(2*c)} end
+  local some,A,B,c,As,Bs,d,proj,far = many(self.rows, the.Half)
+  function d(r1,r2) return r1:dist(r2, self.cols.x) end
+  function far(r)   return r:far(some, self.cols.x) end
+  function proj(r)  return {row=r, x=(d(A,r)^2 + c^2 - d(B,r)^2)/(2*c)} end
   A     = above or far(any(some))
   B     = far(A)
   c     = d(A,B)
   As,Bs = self:clone(), self:clone()
-  for i,rw in pairs(sort(map(self.rows, projFun), lt"x")) do
-    if i<=(#self.rows)//2 then As:add(rw.row) else Bs:add(rw.row) end end
+  for i,rowx in pairs(sort(map(self.rows, proj), lt"x")) do
+    if i<=(#self.rows)//2 then As:add(rowx.row) else Bs:add(rowx.row) end end
   return As,Bs,A,B,c end 
 
 function DATA:tree(  stop,above, rest)
