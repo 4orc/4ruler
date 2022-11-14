@@ -1,4 +1,10 @@
 #!/usr/bin/env gawk -f
+## r1.awk : count things
+## (c) 2022 things and stuff
+## 
+## ass
+@namespace "r1"
+
 ## stats
 # BEGIN { FS=","; Big=1E32; E=2.71828182845904 }
 #       { gsub(/[ \t]+/,"") }
@@ -18,10 +24,6 @@ function min(x,y) { return x<y ? x : y }
 function isNum(c) { return c in Hi    }     
 function isY(c)   { return Names[c] ~ /[!\+-]$/ }
 
-function lines(file,fun,payload,sep,    s,a) {
-   while((getline s < file) > 0) { split(s,a,sep ? sep : " "); @fun(a,payload) }
-   close(file) }
-
 function help(file) {
    while((getline < file) > 0) { if (sub(/^## /,"  ",$0)) print $0 }; close(file) }
 
@@ -36,7 +38,11 @@ function sd(a,    i,n,d,mu,m2) {
   for(i in a) { n++; d = a[i] - mu; mu += d/n; m2 += d*(a[i]-mu) }
   return n<2 ? 0 : (m2/(n-1))^.5 }
 
-BEGIN {lines("r1.awk","set",a); for(i in a) print(i,typeof(a[i]), a[i]) ;
+function lines(file,fun,payload,sep,    s,a) {
+   while((getline s < file) > 0) { split(s,a,sep ? sep : " "); @fun(a,payload) }
+   close(file) }
+
+fBEGIN {lines("r1.awk","set",a); for(i in a) print(i,typeof(a[i]), a[i]) ;
        help("r1.awk")}
 
 function norm(c,x) {
@@ -59,10 +65,6 @@ function discretize(c,x) {
   return  w * int(x - Lo[c]/w) }
 
 function malloc(a,i) { a[i][i]; del a[i][1] }
-function BIN(a,v,x,y) { 
-  a[v]["lo"].lo=x
-  a[v]["hi"]=x
-  a[v]["ys"][y]=0 }
 function BIN(a,v,x,y) { 
   a[v]["lo"]=x
   a[v]["hi"]=x
